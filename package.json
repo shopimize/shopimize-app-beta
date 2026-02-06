@@ -1,0 +1,40 @@
+{
+  "name": "profit-tracker-saas",
+  "version": "1.0.0",
+  "description": "E-commerce profit tracking SaaS with Shopify and Google Ads integration",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.1.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "next-auth": "^4.24.5",
+    "@prisma/client": "^5.8.0",
+    "stripe": "^14.12.0",
+    "@shopify/shopify-api": "^9.0.1",
+    "google-auth-library": "^9.4.1",
+    "googleapis": "^131.0.0",
+    "recharts": "^2.10.3",
+    "date-fns": "^3.0.6",
+    "axios": "^1.6.5",
+    "bcryptjs": "^2.4.3",
+    "zod": "^3.22.4",
+    "tailwindcss": "^3.4.1",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.33"
+  },
+  "devDependencies": {
+    "@types/node": "20.11.0",
+    "@types/react": "18.2.48",
+    "@types/react-dom": "18.2.18",
+    "@types/bcryptjs": "^2.4.6",
+    "typescript": "5.3.3",
+    "prisma": "^5.8.0",
+    "eslint": "8.56.0",
+    "eslint-config-next": "14.1.0"
+  }
+}

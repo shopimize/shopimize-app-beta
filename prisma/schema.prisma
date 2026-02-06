@@ -1,0 +1,144 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  subscription  Subscription?
+  stores        Store[]
+}
+
+model Subscription {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  stripeCustomerId       String?   @unique
+  stripeSubscriptionId   String?   @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  
+  status            String   @default("inactive") // inactive, active, canceled, past_due
+  plan              String   @default("free") // free, basic, pro
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Store {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  shopifyDomain     String   @unique
+  shopifyAccessToken String
+  shopifyShopId     String?
+  
+  googleAdsCustomerId String?
+  googleAdsRefreshToken String?
+  
+  name              String
+  currency          String   @default("USD")
+  timezone          String   @default("UTC")
+  
+  isActive          Boolean  @default(true)
+  lastSyncedAt      DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  orders            Order[]
+  metrics           DailyMetric[]
+  adSpend           AdSpend[]
+  
+  @@index([userId])
+}
+
+model Order {
+  id                String   @id @default(cuid())
+  storeId           String
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  shopifyOrderId    String   @unique
+  orderNumber       String
+  
+  totalPrice        Float
+  totalCost         Float    @default(0)
+  shippingCost      Float    @default(0)
+  taxAmount         Float    @default(0)
+  discountAmount    Float    @default(0)
+  
+  profit            Float    @default(0)
+  margin            Float    @default(0)
+  
+  currency          String
+  financialStatus   String
+  fulfillmentStatus String?
+  
+  createdAt         DateTime
+  processedAt       DateTime?
+  
+  @@index([storeId])
+  @@index([createdAt])
+}
+
+model DailyMetric {
+  id                String   @id @default(cuid())
+  storeId           String
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  date              DateTime @db.Date
+  
+  revenue           Float    @default(0)
+  cost              Float    @default(0)
+  adSpend           Float    @default(0)
+  shippingCost      Float    @default(0)
+  
+  profit            Float    @default(0)
+  margin            Float    @default(0)
+  
+  orderCount        Int      @default(0)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([storeId, date])
+  @@index([storeId])
+  @@index([date])
+}
+
+model AdSpend {
+  id                String   @id @default(cuid())
+  storeId           String
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  platform          String   // "google_ads", "facebook_ads"
+  campaignId        String?
+  campaignName      String?
+  
+  date              DateTime @db.Date
+  amount            Float
+  
+  clicks            Int?
+  impressions       Int?
+  conversions       Int?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([storeId])
+  @@index([date])
+}
