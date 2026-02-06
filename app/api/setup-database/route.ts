@@ -3,12 +3,10 @@ import { PrismaClient } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
-    // Create a new Prisma Client instance
     const prisma = new PrismaClient();
 
-    // SQL commands to create all tables
-    const setupSQL = `
-      -- Create Users table
+    // Execute each CREATE TABLE statement separately
+    await prisma.$executeRaw`
       CREATE TABLE IF NOT EXISTS "User" (
           id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
           email TEXT UNIQUE NOT NULL,
@@ -16,9 +14,9 @@ export async function GET(request: NextRequest) {
           name TEXT,
           "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
+      )`;
 
-      -- Create Subscription table
+    await prisma.$executeRaw`
       CREATE TABLE IF NOT EXISTS "Subscription" (
           id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
           "userId" TEXT UNIQUE NOT NULL,
@@ -31,9 +29,9 @@ export async function GET(request: NextRequest) {
           "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY ("userId") REFERENCES "User"(id) ON DELETE CASCADE
-      );
+      )`;
 
-      -- Create Store table
+    await prisma.$executeRaw`
       CREATE TABLE IF NOT EXISTS "Store" (
           id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
           "userId" TEXT NOT NULL,
@@ -50,9 +48,9 @@ export async function GET(request: NextRequest) {
           "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY ("userId") REFERENCES "User"(id) ON DELETE CASCADE
-      );
+      )`;
 
-      -- Create Order table
+    await prisma.$executeRaw`
       CREATE TABLE IF NOT EXISTS "Order" (
           id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
           "storeId" TEXT NOT NULL,
@@ -71,9 +69,9 @@ export async function GET(request: NextRequest) {
           "createdAt" TIMESTAMP(3) NOT NULL,
           "processedAt" TIMESTAMP(3),
           FOREIGN KEY ("storeId") REFERENCES "Store"(id) ON DELETE CASCADE
-      );
+      )`;
 
-      -- Create DailyMetric table
+    await prisma.$executeRaw`
       CREATE TABLE IF NOT EXISTS "DailyMetric" (
           id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
           "storeId" TEXT NOT NULL,
@@ -89,9 +87,9 @@ export async function GET(request: NextRequest) {
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           UNIQUE ("storeId", date),
           FOREIGN KEY ("storeId") REFERENCES "Store"(id) ON DELETE CASCADE
-      );
+      )`;
 
-      -- Create AdSpend table
+    await prisma.$executeRaw`
       CREATE TABLE IF NOT EXISTS "AdSpend" (
           id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
           "storeId" TEXT NOT NULL,
@@ -106,22 +104,17 @@ export async function GET(request: NextRequest) {
           "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY ("storeId") REFERENCES "Store"(id) ON DELETE CASCADE
-      );
+      )`;
 
-      -- Create indexes for better performance
-      CREATE INDEX IF NOT EXISTS "Store_userId_idx" ON "Store"("userId");
-      CREATE INDEX IF NOT EXISTS "Order_storeId_idx" ON "Order"("storeId");
-      CREATE INDEX IF NOT EXISTS "Order_createdAt_idx" ON "Order"("createdAt");
-      CREATE INDEX IF NOT EXISTS "DailyMetric_storeId_idx" ON "DailyMetric"("storeId");
-      CREATE INDEX IF NOT EXISTS "DailyMetric_date_idx" ON "DailyMetric"(date);
-      CREATE INDEX IF NOT EXISTS "AdSpend_storeId_idx" ON "AdSpend"("storeId");
-      CREATE INDEX IF NOT EXISTS "AdSpend_date_idx" ON "AdSpend"(date);
-    `;
+    // Create indexes
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "Store_userId_idx" ON "Store"("userId")`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "Order_storeId_idx" ON "Order"("storeId")`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "Order_createdAt_idx" ON "Order"("createdAt")`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "DailyMetric_storeId_idx" ON "DailyMetric"("storeId")`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "DailyMetric_date_idx" ON "DailyMetric"(date)`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "AdSpend_storeId_idx" ON "AdSpend"("storeId")`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS "AdSpend_date_idx" ON "AdSpend"(date)`;
 
-    // Execute the SQL
-    await prisma.$executeRawUnsafe(setupSQL);
-
-    // Disconnect
     await prisma.$disconnect();
 
     return NextResponse.json({
@@ -137,8 +130,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: false,
       error: error.message,
-      hint: 'Make sure DATABASE_URL is correctly set in Vercel environment variables',
-      fullError: error
+      hint: 'Make sure DATABASE_URL is correctly set in Vercel environment variables'
     }, { status: 500 });
   }
 }
