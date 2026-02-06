@@ -18,11 +18,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Shop parameter required' }, { status: 400 });
   }
 
-  // Generate authorization URL
+  // Generate authorization URL - Shopify API v9+ requires rawRequest
+  const sanitizedShop = shopify.utils.sanitizeShop(shop, true);
+  
+  if (!sanitizedShop) {
+    return NextResponse.json({ error: 'Invalid shop domain' }, { status: 400 });
+  }
+
   const authUrl = await shopify.auth.begin({
-    shop: shopify.utils.sanitizeShop(shop, true)!,
+    shop: sanitizedShop,
     callbackPath: '/api/integrations/shopify/callback',
     isOnline: false,
+    rawRequest: request as any,
   });
 
   return NextResponse.json({ authUrl });
