@@ -28,11 +28,16 @@ export async function POST(request: NextRequest) {
 
     // Fetch orders from last 30 days or since last sync
     const since = store.lastSyncedAt || subDays(new Date(), 30);
+    console.log('[SYNC] Fetching orders since:', since);
+    
     const orders = await getShopifyOrders(
       store.shopifyDomain,
       store.shopifyAccessToken,
       since
     );
+
+    console.log('[SYNC] Found orders from Shopify:', orders.length);
+    console.log('[SYNC] Orders:', JSON.stringify(orders, null, 2));
 
     let processedCount = 0;
 

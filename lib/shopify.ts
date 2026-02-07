@@ -128,11 +128,23 @@ export async function getShopifyOrders(
     }),
   });
 
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[SHOPIFY] HTTP error:', response.status, errorText);
+    throw new Error(`Shopify API HTTP ${response.status}: ${errorText}`);
+  }
+
   const data = await response.json();
+  console.log('[SHOPIFY] GraphQL response:', JSON.stringify(data, null, 2));
   
   if (data.errors) {
-    console.error('GraphQL errors:', data.errors);
-    throw new Error('Failed to fetch orders from Shopify');
+    console.error('[SHOPIFY] GraphQL errors:', JSON.stringify(data.errors, null, 2));
+    throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+  }
+
+  if (!data.data || !data.data.orders) {
+    console.error('[SHOPIFY] Unexpected response structure:', data);
+    throw new Error('Unexpected GraphQL response structure');
   }
 
   // Transform GraphQL response to match REST API format
