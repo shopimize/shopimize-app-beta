@@ -51,31 +51,116 @@ export async function getShopifyOrders(
   accessToken: string,
   since?: Date
 ): Promise<ShopifyOrder[]> {
-  const session = new Session({
-    id: shopDomain,
-    shop: shopDomain,
-    state: 'state',
-    isOnline: false,
-    accessToken: accessToken,
+  const sinceDate = since ? since.toISOString() : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  
+  const query = `
+    query getOrders($query: String!) {
+      orders(first: 250, query: $query) {
+        edges {
+          node {
+            id
+            name
+            createdAt
+            processedAt
+            displayFinancialStatus
+            displayFulfillmentStatus
+            totalPriceSet {
+              shopMoney {
+                amount
+              }
+            }
+            subtotalPriceSet {
+              shopMoney {
+                amount
+              }
+            }
+            totalTaxSet {
+              shopMoney {
+                amount
+              }
+            }
+            totalDiscountsSet {
+              shopMoney {
+                amount
+              }
+            }
+            totalShippingPriceSet {
+              shopMoney {
+                amount
+              }
+            }
+            lineItems(first: 100) {
+              edges {
+                node {
+                  id
+                  quantity
+                  originalUnitPriceSet {
+                    shopMoney {
+                      amount
+                    }
+                  }
+                  variant {
+                    id
+                    product {
+                      id
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const response = await fetch(`https://${shopDomain}/admin/api/2024-01/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': accessToken,
+    },
+    body: JSON.stringify({
+      query,
+      variables: {
+        query: `created_at:>='${sinceDate}'`
+      }
+    }),
   });
 
-  const client = new shopify.clients.Rest({ session });
+  const data = await response.json();
   
-  const params: any = {
-    status: 'any',
-    limit: 250,
-  };
-  
-  if (since) {
-    params.created_at_min = since.toISOString();
+  if (data.errors) {
+    console.error('GraphQL errors:', data.errors);
+    throw new Error('Failed to fetch orders from Shopify');
   }
 
-  const response = await client.get({
-    path: 'orders',
-    query: params,
-  });
+  // Transform GraphQL response to match REST API format
+  const orders: ShopifyOrder[] = data.data.orders.edges.map((edge: any) => ({
+    id: edge.node.id.split('/').pop(),
+    order_number: edge.node.name.replace('#', ''),
+    created_at: edge.node.createdAt,
+    processed_at: edge.node.processedAt,
+    financial_status: edge.node.displayFinancialStatus,
+    fulfillment_status: edge.node.displayFulfillmentStatus,
+    total_price: edge.node.totalPriceSet.shopMoney.amount,
+    subtotal_price: edge.node.subtotalPriceSet.shopMoney.amount,
+    total_tax: edge.node.totalTaxSet.shopMoney.amount,
+    total_discounts: edge.node.totalDiscountsSet.shopMoney.amount,
+    total_shipping_price_set: {
+      shop_money: {
+        amount: edge.node.totalShippingPriceSet.shopMoney.amount
+      }
+    },
+    line_items: edge.node.lineItems.edges.map((item: any) => ({
+      id: item.node.id.split('/').pop(),
+      quantity: item.node.quantity,
+      price: item.node.originalUnitPriceSet.shopMoney.amount,
+      product_id: item.node.variant?.product?.id.split('/').pop() || '',
+    }))
+  }));
 
-  return response.body.orders as ShopifyOrder[];
+  return orders;
 }
 
 export async function getInventoryCost(
@@ -83,23 +168,38 @@ export async function getInventoryCost(
   accessToken: string,
   inventoryItemId: string
 ): Promise<number> {
-  const session = new Session({
-    id: shopDomain,
-    shop: shopDomain,
-    state: 'state',
-    isOnline: false,
-    accessToken: accessToken,
-  });
-
-  const client = new shopify.clients.Rest({ session });
+  const query = `
+    query getInventoryItem($id: ID!) {
+      inventoryItem(id: $id) {
+        unitCost {
+          amount
+        }
+      }
+    }
+  `;
 
   try {
-    const response = await client.get({
-      path: `inventory_items/${inventoryItemId}`,
+    const response = await fetch(`https://${shopDomain}/admin/api/2024-01/graphql.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify({
+        query,
+        variables: {
+          id: `gid://shopify/InventoryItem/${inventoryItemId}`
+        }
+      }),
     });
 
-    const item = response.body.inventory_item as InventoryCost;
-    return parseFloat(item.cost || '0');
+    const data = await response.json();
+    
+    if (data.errors || !data.data.inventoryItem) {
+      return 0;
+    }
+
+    return parseFloat(data.data.inventoryItem.unitCost?.amount || '0');
   } catch (error) {
     console.error('Error fetching inventory cost:', error);
     return 0;
@@ -110,22 +210,54 @@ export async function getProductsWithVariants(
   shopDomain: string,
   accessToken: string
 ): Promise<ShopifyProduct[]> {
-  const session = new Session({
-    id: shopDomain,
-    shop: shopDomain,
-    state: 'state',
-    isOnline: false,
-    accessToken: accessToken,
+  const query = `
+    query getProducts {
+      products(first: 250) {
+        edges {
+          node {
+            id
+            variants(first: 100) {
+              edges {
+                node {
+                  id
+                  inventoryItem {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const response = await fetch(`https://${shopDomain}/admin/api/2024-01/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': accessToken,
+    },
+    body: JSON.stringify({ query }),
   });
 
-  const client = new shopify.clients.Rest({ session });
+  const data = await response.json();
+  
+  if (data.errors) {
+    console.error('GraphQL errors:', data.errors);
+    return [];
+  }
 
-  const response = await client.get({
-    path: 'products',
-    query: { limit: 250 },
-  });
+  // Transform GraphQL response to match REST API format
+  const products: ShopifyProduct[] = data.data.products.edges.map((edge: any) => ({
+    id: edge.node.id.split('/').pop(),
+    variants: edge.node.variants.edges.map((v: any) => ({
+      id: v.node.id.split('/').pop(),
+      inventory_item_id: v.node.inventoryItem.id.split('/').pop(),
+    }))
+  }));
 
-  return response.body.products as ShopifyProduct[];
+  return products;
 }
 
 export async function calculateOrderCost(
