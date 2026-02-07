@@ -212,6 +212,15 @@ export default function DashboardPage() {
     );
   }
 
+  // Show loading if we have stores but no metrics yet (waiting for data to load)
+  if (!metrics) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600">Loading data...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
