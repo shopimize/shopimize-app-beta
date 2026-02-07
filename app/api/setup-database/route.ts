@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
+// Prevent this route from being statically generated during build
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const prisma = new PrismaClient();
