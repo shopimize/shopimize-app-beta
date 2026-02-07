@@ -1,5 +1,4 @@
 // Demo/sample data for testing the interface without Shopify
-import { addDays, subDays, format } from 'date-fns';
 
 export const generateDemoStore = () => ({
   id: 'demo-store-1',
@@ -14,7 +13,9 @@ export const generateDemoMetrics = (days: number = 30) => {
   const today = new Date();
 
   for (let i = days - 1; i >= 0; i--) {
-    const date = subDays(today, i);
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    
     const revenue = Math.random() * 5000 + 2000; // $2000-$7000
     const cost = revenue * (0.4 + Math.random() * 0.2); // 40-60% of revenue
     const adSpend = Math.random() * 500 + 200; // $200-$700
@@ -23,7 +24,7 @@ export const generateDemoMetrics = (days: number = 30) => {
     const margin = (profit / revenue) * 100;
 
     dailyMetrics.push({
-      date: format(date, 'yyyy-MM-dd'),
+      date: date.toISOString().split('T')[0],
       revenue: Math.round(revenue * 100) / 100,
       cost: Math.round(cost * 100) / 100,
       adSpend: Math.round(adSpend * 100) / 100,
@@ -48,13 +49,16 @@ export const generateDemoOrders = () => {
     const profit = totalPrice - totalCost - shippingCost;
     const margin = (profit / totalPrice) * 100;
 
+    const orderDate = new Date(today);
+    orderDate.setDate(today.getDate() - Math.floor(Math.random() * 7));
+
     orders.push({
       id: `demo-order-${i + 1}`,
       orderNumber: `#${1000 + i}`,
       totalPrice: Math.round(totalPrice * 100) / 100,
       profit: Math.round(profit * 100) / 100,
       margin: Math.round(margin * 100) / 100,
-      createdAt: subDays(today, Math.floor(Math.random() * 7)).toISOString(),
+      createdAt: orderDate.toISOString(),
     });
   }
 

@@ -265,22 +265,24 @@ export default function DashboardPage() {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Action Bar */}
-        <div className="mb-8 flex gap-4">
-          <button
-            onClick={syncOrders}
-            disabled={syncing}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition disabled:opacity-50"
-          >
-            {syncing ? 'Syncing...' : 'Sync Orders'}
-          </button>
-          <button
-            onClick={connectGoogleAds}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition"
-          >
-            Connect Google Ads
-          </button>
-        </div>
+        {/* Action Bar - Hide in demo mode */}
+        {!demoMode && (
+          <div className="mb-8 flex gap-4">
+            <button
+              onClick={syncOrders}
+              disabled={syncing}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition disabled:opacity-50"
+            >
+              {syncing ? 'Syncing...' : 'Sync Orders'}
+            </button>
+            <button
+              onClick={connectGoogleAds}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition"
+            >
+              Connect Google Ads
+            </button>
+          </div>
+        )}
 
         {/* Metrics Cards */}
         {metrics && (
