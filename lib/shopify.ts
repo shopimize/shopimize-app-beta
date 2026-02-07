@@ -53,9 +53,10 @@ export async function getShopifyOrders(
 ): Promise<ShopifyOrder[]> {
   const sinceDate = since ? since.toISOString() : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   
+  // Simplified query without protected customer data
   const query = `
-    query getOrders($query: String!) {
-      orders(first: 250, query: $query) {
+    {
+      orders(first: 250, query: "created_at:>='${sinceDate}'") {
         edges {
           node {
             id
@@ -64,22 +65,22 @@ export async function getShopifyOrders(
             processedAt
             displayFinancialStatus
             displayFulfillmentStatus
-            totalPriceSet {
+            currentTotalPriceSet {
               shopMoney {
                 amount
               }
             }
-            subtotalPriceSet {
+            currentSubtotalPriceSet {
               shopMoney {
                 amount
               }
             }
-            totalTaxSet {
+            currentTotalTaxSet {
               shopMoney {
                 amount
               }
             }
-            totalDiscountsSet {
+            currentTotalDiscountsSet {
               shopMoney {
                 amount
               }
@@ -120,12 +121,7 @@ export async function getShopifyOrders(
       'Content-Type': 'application/json',
       'X-Shopify-Access-Token': accessToken,
     },
-    body: JSON.stringify({
-      query,
-      variables: {
-        query: `created_at:>='${sinceDate}'`
-      }
-    }),
+    body: JSON.stringify({ query }),
   });
 
   if (!response.ok) {
@@ -155,10 +151,10 @@ export async function getShopifyOrders(
     processed_at: edge.node.processedAt,
     financial_status: edge.node.displayFinancialStatus,
     fulfillment_status: edge.node.displayFulfillmentStatus,
-    total_price: edge.node.totalPriceSet.shopMoney.amount,
-    subtotal_price: edge.node.subtotalPriceSet.shopMoney.amount,
-    total_tax: edge.node.totalTaxSet.shopMoney.amount,
-    total_discounts: edge.node.totalDiscountsSet.shopMoney.amount,
+    total_price: edge.node.currentTotalPriceSet.shopMoney.amount,
+    subtotal_price: edge.node.currentSubtotalPriceSet.shopMoney.amount,
+    total_tax: edge.node.currentTotalTaxSet.shopMoney.amount,
+    total_discounts: edge.node.currentTotalDiscountsSet.shopMoney.amount,
     total_shipping_price_set: {
       shop_money: {
         amount: edge.node.totalShippingPriceSet.shopMoney.amount
@@ -172,6 +168,7 @@ export async function getShopifyOrders(
     }))
   }));
 
+  console.log('[SHOPIFY] Parsed orders:', orders.length);
   return orders;
 }
 
