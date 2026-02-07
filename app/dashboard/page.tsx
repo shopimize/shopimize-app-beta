@@ -59,10 +59,10 @@ export default function DashboardPage() {
   }, [status]);
 
   useEffect(() => {
-    if (selectedStore) {
+    if (selectedStore && !demoMode) {
       fetchMetrics();
     }
-  }, [selectedStore]);
+  }, [selectedStore, demoMode]);
 
   const fetchStores = async () => {
     try {
@@ -81,12 +81,13 @@ export default function DashboardPage() {
   };
 
   const enableDemoMode = () => {
-    setDemoMode(true);
     const demoStore = generateDemoStore();
     const dailyMetrics = generateDemoMetrics(30);
     const recentOrders = generateDemoOrders();
     const totals = generateDemoTotals(dailyMetrics);
 
+    // Set all state together
+    setDemoMode(true);
     setStores([demoStore]);
     setSelectedStore(demoStore.id);
     setMetrics({
