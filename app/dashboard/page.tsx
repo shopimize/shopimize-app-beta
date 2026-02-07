@@ -69,9 +69,12 @@ export default function DashboardPage() {
       setStores(data.stores || []);
       if (data.stores?.length > 0) {
         setSelectedStore(data.stores[0].id);
+      } else {
+        setLoading(false); // Stop loading if no stores
       }
     } catch (error) {
       console.error('Error fetching stores:', error);
+      setLoading(false); // Stop loading on error
     }
   };
 
