@@ -8,7 +8,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <span className="text-2xl font-bold text-white">ProfitTracker</span>
+              <span className="text-2xl font-bold text-white">Shopimize</span>
             </div>
             <div className="flex gap-4">
               <Link 
@@ -171,7 +171,7 @@ export default function HomePage() {
       <div className="border-t border-white/10 mt-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <p className="text-center text-gray-400">
-            © 2024 ProfitTracker. All rights reserved.
+            © 2024 Shopimize. All rights reserved.
           </p>
         </div>
       </div>

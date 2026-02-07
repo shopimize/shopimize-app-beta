@@ -177,7 +177,7 @@ export default function DashboardPage() {
         <nav className="bg-white border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
-              <span className="text-2xl font-bold text-gray-900">ProfitTracker</span>
+              <span className="text-2xl font-bold text-gray-900">Shopimize</span>
               <button
                 onClick={() => router.push('/api/auth/signout')}
                 className="text-gray-600 hover:text-gray-900"
@@ -189,7 +189,7 @@ export default function DashboardPage() {
         </nav>
 
         <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Welcome to ProfitTracker</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Welcome to Shopimize</h1>
           <p className="text-gray-600 mb-8">Connect your Shopify store to get started</p>
           <div className="flex gap-4 justify-center">
             <button
@@ -228,7 +228,7 @@ export default function DashboardPage() {
       <nav className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <span className="text-2xl font-bold text-gray-900">ProfitTracker</span>
+            <span className="text-2xl font-bold text-gray-900">Shopimize</span>
             <div className="flex items-center gap-4">
               <select
                 value={selectedStore}

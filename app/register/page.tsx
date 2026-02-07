@@ -58,7 +58,7 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <Link href="/" className="text-3xl font-bold text-white">ProfitTracker</Link>
+          <Link href="/" className="text-3xl font-bold text-white">Shopimize</Link>
           <p className="text-gray-400 mt-2">Create your account</p>
         </div>
 
