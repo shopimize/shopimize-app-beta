@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
+import { generateDemoMetrics, generateDemoOrders, generateDemoTotals, generateDemoStore } from '@/lib/demo-data';
 
 interface Metrics {
   totals: {
@@ -43,6 +44,7 @@ export default function DashboardPage() {
   const [selectedStore, setSelectedStore] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -76,6 +78,27 @@ export default function DashboardPage() {
       console.error('Error fetching stores:', error);
       setLoading(false); // Stop loading on error
     }
+  };
+
+  const enableDemoMode = () => {
+    setDemoMode(true);
+    const demoStore = generateDemoStore();
+    const dailyMetrics = generateDemoMetrics(30);
+    const recentOrders = generateDemoOrders();
+    const totals = generateDemoTotals(dailyMetrics);
+
+    setStores([demoStore]);
+    setSelectedStore(demoStore.id);
+    setMetrics({
+      totals,
+      dailyMetrics,
+      recentOrders,
+      store: {
+        name: demoStore.name,
+        lastSynced: demoStore.lastSyncedAt,
+      },
+    });
+    setLoading(false);
   };
 
   const fetchMetrics = async () => {
@@ -167,12 +190,23 @@ export default function DashboardPage() {
         <div className="max-w-3xl mx-auto px-4 py-16 text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Welcome to ProfitTracker</h1>
           <p className="text-gray-600 mb-8">Connect your Shopify store to get started</p>
-          <button
-            onClick={connectShopify}
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition font-medium"
-          >
-            Connect Shopify Store
-          </button>
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={connectShopify}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition font-medium"
+            >
+              Connect Shopify Store
+            </button>
+            <button
+              onClick={enableDemoMode}
+              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
+            >
+              View Demo with Sample Data
+            </button>
+          </div>
+          <p className="text-sm text-gray-500 mt-4">
+            Try the demo to see how your dashboard will look with real data
+          </p>
         </div>
       </div>
     );
@@ -205,6 +239,30 @@ export default function DashboardPage() {
           </div>
         </div>
       </nav>
+
+      {/* Demo Mode Banner */}
+      {demoMode && (
+        <div className="bg-blue-50 border-b border-blue-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm font-medium text-blue-900">
+                  Demo Mode - You're viewing sample data
+                </span>
+              </div>
+              <button
+                onClick={() => window.location.reload()}
+                className="text-sm text-blue-700 hover:text-blue-900 font-medium"
+              >
+                Exit Demo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Action Bar */}
