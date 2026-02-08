@@ -14,6 +14,8 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,18 +37,9 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Registration failed');
       }
 
-      // Auto-login after registration
-      const result = await signIn('credentials', {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError('Account created but login failed. Please try logging in.');
-      } else {
-        router.push('/dashboard');
-      }
+      // Show success message instead of auto-login
+      setSuccess(true);
+      setUserEmail(formData.email);
     } catch (err: any) {
       setError(err.message || 'An error occurred. Please try again.');
     } finally {
@@ -63,13 +56,46 @@ export default function RegisterPage() {
         </div>
 
         <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8">
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
-              {error}
+          {success ? (
+            /* Success State - Email Verification */
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-500/20 border border-green-500/50 mb-4">
+                <svg className="h-8 w-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Check Your Email!</h2>
+              <p className="text-gray-300 mb-6">
+                We've sent a verification link to<br />
+                <strong className="text-white">{userEmail}</strong>
+              </p>
+              <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4 mb-6">
+                <p className="text-sm text-blue-200">
+                  📧 Click the link in your email to verify your account
+                </p>
+                <p className="text-sm text-blue-300 mt-2">
+                  The link will expire in 24 hours
+                </p>
+              </div>
+              <Link
+                href="/login"
+                className="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition font-medium"
+              >
+                Go to Login
+              </Link>
+              <p className="text-sm text-gray-400 mt-4">
+                Didn't receive the email? Check your spam folder
+              </p>
             </div>
-          )}
+          ) : (
+            <>
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
+                  {error}
+                </div>
+              )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-200 mb-2">
                 Name
@@ -133,6 +159,8 @@ export default function RegisterPage() {
               </Link>
             </p>
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>
