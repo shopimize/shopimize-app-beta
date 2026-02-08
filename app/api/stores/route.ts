@@ -6,7 +6,10 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   
+  console.log('🔵 Fetching stores for user:', session?.user?.id);
+  
   if (!session?.user?.id) {
+    console.log('🔴 No session in stores API');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -25,9 +28,11 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    console.log('✅ Found stores:', stores.length, stores.map(s => s.shopifyDomain));
+
     return NextResponse.json({ stores });
   } catch (error) {
-    console.error('Error fetching stores:', error);
+    console.error('🔴 Error fetching stores:', error);
     return NextResponse.json(
       { error: 'Failed to fetch stores' },
       { status: 500 }
