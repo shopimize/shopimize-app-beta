@@ -60,10 +60,12 @@ export async function createSecureStore(
   let store;
   
   if (existingStore) {
-    // Update existing store
+    // Update existing store AND transfer to new user
+    console.log(`🔄 Store exists, updating and transferring to user: ${userId}`);
     store = await prisma.store.update({
       where: { id: existingStore.id },
       data: {
+        userId: userId, // ← FIX: Update the user ID!
         shopifyAccessToken: encryptedToken,
         shopifyShopId: data.shopifyShopId || existingStore.shopifyShopId,
         name: data.name,
@@ -74,6 +76,7 @@ export async function createSecureStore(
     });
   } else {
     // Create new store
+    console.log(`✨ Creating new store for user: ${userId}`);
     store = await prisma.store.create({
       data: {
         userId,
