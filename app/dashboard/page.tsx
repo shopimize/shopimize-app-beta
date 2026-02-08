@@ -1,11 +1,9 @@
 'use client';
 
+import DashboardLayout from '@/components/DashboardLayout';
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
-import { generateDemoMetrics, generateDemoOrders, generateDemoTotals, generateDemoStore } from '@/lib/demo-data';
 
 interface Metrics {
   totals: {
@@ -13,8 +11,6 @@ interface Metrics {
     profit: number;
     margin: number;
     orderCount: number;
-    cost: number;
-    adSpend: number;
   };
   dailyMetrics: Array<{
     date: string;
@@ -30,49 +26,23 @@ interface Metrics {
     margin: number;
     createdAt: string;
   }>;
-  store: {
-    name: string;
-    lastSynced?: string;
-  };
 }
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
-  const [stores, setStores] = useState<any[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>('');
+  const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-    }
-  }, [status, router]);
-
-  useEffect(() => {
-    if (status === 'authenticated') {
-      fetchStores();
-    }
-  }, [status]);
-
-  // Refetch stores when coming back from Shopify OAuth
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('connected') === 'shopify') {
-      // Remove query param and refresh stores
-      window.history.replaceState({}, '', '/dashboard');
-      fetchStores();
-    }
+    fetchStores();
   }, []);
 
   useEffect(() => {
-    if (selectedStore && !demoMode) {
+    if (selectedStore) {
       fetchMetrics();
     }
-  }, [selectedStore, demoMode]);
+  }, [selectedStore]);
 
   const fetchStores = async () => {
     try {
@@ -82,34 +52,12 @@ export default function DashboardPage() {
       if (data.stores?.length > 0) {
         setSelectedStore(data.stores[0].id);
       } else {
-        setLoading(false); // Stop loading if no stores
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error fetching stores:', error);
-      setLoading(false); // Stop loading on error
+      setLoading(false);
     }
-  };
-
-  const enableDemoMode = () => {
-    const demoStore = generateDemoStore();
-    const dailyMetrics = generateDemoMetrics(30);
-    const recentOrders = generateDemoOrders();
-    const totals = generateDemoTotals(dailyMetrics);
-
-    // Set all state together
-    setDemoMode(true);
-    setStores([demoStore]);
-    setSelectedStore(demoStore.id);
-    setMetrics({
-      totals,
-      dailyMetrics,
-      recentOrders,
-      store: {
-        name: demoStore.name,
-        lastSynced: demoStore.lastSyncedAt,
-      },
-    });
-    setLoading(false);
   };
 
   const fetchMetrics = async () => {
@@ -125,300 +73,190 @@ export default function DashboardPage() {
     }
   };
 
-  const syncOrders = async () => {
-    setSyncing(true);
-    try {
-      const response = await fetch('/api/sync/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storeId: selectedStore }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        await fetchMetrics();
-      }
-    } catch (error) {
-      console.error('Error syncing orders:', error);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const connectShopify = async () => {
-    const shop = prompt('Enter your Shopify store domain (e.g., mystore.myshopify.com):');
-    if (!shop) return;
-
-    try {
-      const response = await fetch(`/api/integrations/shopify/connect?shop=${shop}`);
-      const data = await response.json();
-      if (data.authUrl) {
-        window.location.href = data.authUrl;
-      }
-    } catch (error) {
-      console.error('Error connecting Shopify:', error);
-    }
-  };
-
-  const connectGoogleAds = async () => {
-    if (!selectedStore) return;
-
-    try {
-      const response = await fetch(`/api/integrations/google-ads/connect?storeId=${selectedStore}`);
-      const data = await response.json();
-      if (data.authUrl) {
-        window.location.href = data.authUrl;
-      }
-    } catch (error) {
-      console.error('Error connecting Google Ads:', error);
-    }
-  };
-
-  if (status === 'loading' || loading) {
+  if (stores.length === 0 && !loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
-    );
-  }
-
-  if (stores.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <nav className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <span className="text-2xl font-bold text-gray-900">Shopimize</span>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => router.push('/settings')}
-                  className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Settings
-                </button>
-                <button
-                  onClick={() => router.push('/api/auth/signout')}
-                  className="text-gray-600 hover:text-gray-900"
-                >
-                  Sign Out
-                </button>
-              </div>
+      <DashboardLayout>
+        <div className="max-w-3xl mx-auto text-center py-16">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
             </div>
-          </div>
-        </nav>
-
-        <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Welcome to Shopimize</h1>
-          <p className="text-gray-600 mb-8">Connect your Shopify store to get started</p>
-          <div className="flex gap-4 justify-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Shopimize!</h2>
+            <p className="text-gray-600 mb-8">Connect your Shopify store to start tracking your profits</p>
             <button
-              onClick={connectShopify}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition font-medium"
+              onClick={() => window.location.href = '/api/integrations/shopify/connect'}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium"
             >
               Connect Shopify Store
             </button>
-            <button
-              onClick={enableDemoMode}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium"
-            >
-              View Demo with Sample Data
-            </button>
           </div>
-          <p className="text-sm text-gray-500 mt-4">
-            Try the demo to see how your dashboard will look with real data
-          </p>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
-  // Show loading if we have stores but no metrics yet (waiting for data to load)
-  if (!metrics) {
+  if (loading || !metrics) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading data...</div>
-      </div>
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-16">
+          <div className="text-gray-600">Loading metrics...</div>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <span className="text-2xl font-bold text-gray-900">Shopimize</span>
-            <div className="flex items-center gap-4">
-              <select
-                value={selectedStore}
-                onChange={(e) => setSelectedStore(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                {stores.map(store => (
-                  <option key={store.id} value={store.id}>{store.name}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => router.push('/settings')}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Settings
-              </button>
-              <button
-                onClick={() => router.push('/api/auth/signout')}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Demo Mode Banner */}
-      {demoMode && (
-        <div className="bg-blue-50 border-b border-blue-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm font-medium text-blue-900">
-                  Demo Mode - You're viewing sample data
-                </span>
-              </div>
-              <button
-                onClick={() => window.location.reload()}
-                className="text-sm text-blue-700 hover:text-blue-900 font-medium"
-              >
-                Exit Demo
-              </button>
-            </div>
-          </div>
+    <DashboardLayout>
+      {/* Store Selector */}
+      {stores.length > 1 && (
+        <div className="mb-6">
+          <select
+            value={selectedStore}
+            onChange={(e) => setSelectedStore(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+          >
+            {stores.map(store => (
+              <option key={store.id} value={store.id}>{store.name}</option>
+            ))}
+          </select>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Action Bar - Hide in demo mode */}
-        {!demoMode && (
-          <div className="mb-8 flex gap-4">
-            <button
-              onClick={syncOrders}
-              disabled={syncing}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition disabled:opacity-50"
-            >
-              {syncing ? 'Syncing...' : 'Sync Orders'}
-            </button>
-            <button
-              onClick={connectGoogleAds}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition"
-            >
-              Connect Google Ads
-            </button>
+      {/* Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-600">Total Revenue</span>
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
           </div>
-        )}
+          <div className="text-3xl font-bold text-gray-900">
+            ${metrics.totals.revenue.toFixed(2)}
+          </div>
+        </div>
 
-        {/* Metrics Cards */}
-        {metrics && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-sm font-medium text-gray-600 mb-2">Total Revenue</div>
-                <div className="text-3xl font-bold text-gray-900">
-                  ${metrics.totals.revenue.toFixed(2)}
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-sm font-medium text-gray-600 mb-2">Total Profit</div>
-                <div className="text-3xl font-bold text-green-600">
-                  ${metrics.totals.profit.toFixed(2)}
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-sm font-medium text-gray-600 mb-2">Profit Margin</div>
-                <div className="text-3xl font-bold text-purple-600">
-                  {metrics.totals.margin.toFixed(1)}%
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-sm font-medium text-gray-600 mb-2">Total Orders</div>
-                <div className="text-3xl font-bold text-gray-900">
-                  {metrics.totals.orderCount}
-                </div>
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-600">Total Profit</span>
+            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
             </div>
+          </div>
+          <div className="text-3xl font-bold text-green-600">
+            ${metrics.totals.profit.toFixed(2)}
+          </div>
+        </div>
 
-            {/* Chart */}
-            <div className="bg-white rounded-lg shadow p-6 mb-8">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Profit Over Time</h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={metrics.dailyMetrics}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
-                    tickFormatter={(date) => format(new Date(date), 'MMM d')}
-                  />
-                  <YAxis />
-                  <Tooltip 
-                    labelFormatter={(date) => format(new Date(date), 'MMM d, yyyy')}
-                    formatter={(value: number) => `$${value.toFixed(2)}`}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="profit" 
-                    stroke="#8b5cf6" 
-                    strokeWidth={2}
-                    name="Profit"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2}
-                    name="Revenue"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-600">Profit Margin</span>
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
             </div>
+          </div>
+          <div className="text-3xl font-bold text-purple-600">
+            {metrics.totals.margin.toFixed(1)}%
+          </div>
+        </div>
 
-            {/* Recent Orders */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-6 border-b">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
-              </div>
-              <div className="divide-y">
-                {metrics.recentOrders.map(order => (
-                  <div key={order.id} className="p-6 flex justify-between items-center">
-                    <div>
-                      <div className="font-medium text-gray-900">Order #{order.orderNumber}</div>
-                      <div className="text-sm text-gray-500">
-                        {format(new Date(order.createdAt), 'MMM d, yyyy h:mm a')}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium text-gray-900">${order.totalPrice.toFixed(2)}</div>
-                      <div className="text-sm text-green-600">
-                        Profit: ${order.profit.toFixed(2)} ({order.margin.toFixed(1)}%)
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-600">Total Orders</span>
+            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
             </div>
-          </>
-        )}
+          </div>
+          <div className="text-3xl font-bold text-gray-900">
+            {metrics.totals.orderCount}
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Profit Over Time Chart */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-6">Profit Over Time</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={metrics.dailyMetrics}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis
+              dataKey="date"
+              tickFormatter={(date) => format(new Date(date), 'MMM d')}
+              stroke="#9ca3af"
+            />
+            <YAxis stroke="#9ca3af" />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#fff',
+                border: '1px solid #e5e7eb',
+                borderRadius: '0.5rem',
+              }}
+              formatter={(value: number) => `$${value.toFixed(2)}`}
+              labelFormatter={(date) => format(new Date(date), 'MMM d, yyyy')}
+            />
+            <Line
+              type="monotone"
+              dataKey="profit"
+              stroke="#10b981"
+              strokeWidth={2}
+              dot={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Recent Orders */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-6">Recent Orders</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Order</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Profit</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Margin</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.recentOrders.map((order) => (
+                <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                    {order.orderNumber}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-right text-gray-900">
+                    ${order.totalPrice.toFixed(2)}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-right">
+                    <span className={order.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      ${order.profit.toFixed(2)}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-right">
+                    <span className={order.margin >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {order.margin.toFixed(1)}%
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-right text-gray-500">
+                    {format(new Date(order.createdAt), 'MMM d, h:mm a')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }
