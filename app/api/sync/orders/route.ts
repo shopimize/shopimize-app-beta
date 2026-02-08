@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       // Calculate order cost from inventory
       const totalCost = await calculateOrderCost(
         store.shopifyDomain,
-        store.shopifyAccessToken,
+        store.credentials.shopifyAccessToken!,
         shopifyOrder
       );
 
