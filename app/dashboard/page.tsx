@@ -58,6 +58,16 @@ export default function DashboardPage() {
     }
   }, [status]);
 
+  // Refetch stores when coming back from Shopify OAuth
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('connected') === 'shopify') {
+      // Remove query param and refresh stores
+      window.history.replaceState({}, '', '/dashboard');
+      fetchStores();
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedStore && !demoMode) {
       fetchMetrics();
