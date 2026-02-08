@@ -52,18 +52,41 @@ export async function createSecureStore(
   // Encrypt sensitive data before storing
   const encryptedToken = encryptData(data.shopifyAccessToken);
 
-  const store = await prisma.store.create({
-    data: {
-      userId,
-      shopifyDomain: data.shopifyDomain,
-      shopifyAccessToken: encryptedToken,
-      shopifyShopId: data.shopifyShopId || null,
-      name: data.name,
-      currency: data.currency || 'USD',
-      timezone: data.timezone || 'UTC',
-      isActive: true,
-    },
+  // Check if store already exists for this domain
+  const existingStore = await prisma.store.findUnique({
+    where: { shopifyDomain: data.shopifyDomain },
   });
+
+  let store;
+  
+  if (existingStore) {
+    // Update existing store
+    store = await prisma.store.update({
+      where: { id: existingStore.id },
+      data: {
+        shopifyAccessToken: encryptedToken,
+        shopifyShopId: data.shopifyShopId || existingStore.shopifyShopId,
+        name: data.name,
+        currency: data.currency || existingStore.currency,
+        timezone: data.timezone || existingStore.timezone,
+        isActive: true,
+      },
+    });
+  } else {
+    // Create new store
+    store = await prisma.store.create({
+      data: {
+        userId,
+        shopifyDomain: data.shopifyDomain,
+        shopifyAccessToken: encryptedToken,
+        shopifyShopId: data.shopifyShopId || null,
+        name: data.name,
+        currency: data.currency || 'USD',
+        timezone: data.timezone || 'UTC',
+        isActive: true,
+      },
+    });
+  }
 
   return {
     ...store,
