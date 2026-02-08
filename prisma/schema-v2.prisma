@@ -1,0 +1,371 @@
+// Enhanced Prisma Schema for Production
+// Supports: Multi-platform, Multi-brand, GDPR compliance
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  password      String
+  name          String?
+  
+  // GDPR Compliance
+  gdprConsent          Boolean   @default(false)
+  gdprConsentDate      DateTime?
+  marketingConsent     Boolean   @default(false)
+  dataProcessingConsent Boolean  @default(false)
+  
+  // Account status
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  
+  // Relations
+  brands        Brand[]
+  subscription  Subscription?
+  auditLogs     AuditLog[]
+  
+  @@index([email])
+}
+
+// ============================================
+// MULTI-BRAND SUPPORT
+// ============================================
+
+model Brand {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Settings
+  currency    String   @default("USD")
+  timezone    String   @default("UTC")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  stores      Store[]
+  channels    Channel[]
+  products    Product[]
+  
+  @@index([userId])
+  @@index([slug])
+}
+
+// ============================================
+// E-COMMERCE PLATFORMS
+// ============================================
+
+model Store {
+  id        String   @id @default(cuid())
+  brandId   String
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  
+  // Platform info
+  platform       String  // 'shopify' | 'woocommerce' | 'prestashop'
+  name           String
+  domain         String?
+  
+  // Platform-specific IDs
+  shopifyDomain      String?
+  shopifyAccessToken String? // Encrypted
+  shopifyShopId      String?
+  
+  woocommerceUrl    String?
+  woocommerceKey    String? // Encrypted
+  woocommerceSecret String? // Encrypted
+  
+  prestashopUrl     String?
+  prestashopApiKey  String? // Encrypted
+  
+  // Status
+  isActive      Boolean   @default(true)
+  lastSyncedAt  DateTime?
+  syncStatus    String?   // 'success' | 'error' | 'syncing'
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  orders        Order[]
+  products      Product[]
+  channels      Channel[]
+  
+  @@index([brandId])
+  @@index([platform])
+}
+
+// ============================================
+// SALES CHANNELS
+// ============================================
+
+model Channel {
+  id        String   @id @default(cuid())
+  brandId   String
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  storeId   String?
+  store     Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  
+  name      String
+  type      String   // 'online_store' | 'amazon' | 'facebook' | 'instagram' | 'pos'
+  
+  createdAt DateTime @default(now())
+  
+  // Relations
+  orders    Order[]
+  
+  @@index([brandId])
+  @@index([type])
+}
+
+// ============================================
+// PRODUCTS
+// ============================================
+
+model Product {
+  id              String   @id @default(cuid())
+  brandId         String
+  brand           Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  storeId         String
+  store           Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  // Platform IDs
+  platformProductId String
+  sku               String?
+  
+  // Product info
+  name        String
+  description String?
+  
+  // Pricing
+  price       Decimal  @db.Decimal(10, 2)
+  cost        Decimal? @db.Decimal(10, 2)
+  currency    String   @default("USD")
+  
+  // Inventory
+  stockQuantity Int?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  orderItems  OrderItem[]
+  
+  @@unique([storeId, platformProductId])
+  @@index([brandId])
+  @@index([sku])
+}
+
+// ============================================
+// ORDERS
+// ============================================
+
+model Order {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  channelId String?
+  channel   Channel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  
+  // Platform info
+  platformOrderId String
+  orderNumber     String
+  platform        String
+  
+  // Dates
+  createdAt       DateTime
+  processedAt     DateTime?
+  
+  // Status
+  financialStatus   String?
+  fulfillmentStatus String?
+  
+  // Financial - Revenue
+  totalAmount   Decimal @db.Decimal(10, 2)
+  subtotal      Decimal @db.Decimal(10, 2)
+  tax           Decimal @db.Decimal(10, 2)
+  shippingPrice Decimal @db.Decimal(10, 2)
+  discounts     Decimal @db.Decimal(10, 2)
+  currency      String  @default("USD")
+  
+  // Financial - Costs
+  productCost    Decimal @default(0) @db.Decimal(10, 2)
+  shippingCost   Decimal @default(0) @db.Decimal(10, 2)
+  paymentFees    Decimal @default(0) @db.Decimal(10, 2)
+  advertisingCost Decimal @default(0) @db.Decimal(10, 2)
+  
+  // Calculated
+  totalCost Decimal @default(0) @db.Decimal(10, 2)
+  profit    Decimal @default(0) @db.Decimal(10, 2)
+  margin    Decimal @default(0) @db.Decimal(5, 2)
+  
+  // GDPR: Customer data (optional, encrypted)
+  customerEmail String? // Only stored if consented
+  customerName  String? // Only stored if consented
+  
+  // Sync
+  importedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // Relations
+  items      OrderItem[]
+  
+  @@unique([storeId, platformOrderId])
+  @@index([storeId])
+  @@index([createdAt])
+  @@index([channelId])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  
+  name      String
+  sku       String?
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+  cost      Decimal @default(0) @db.Decimal(10, 2)
+  
+  @@index([orderId])
+  @@index([productId])
+}
+
+// ============================================
+// INTEGRATIONS
+// ============================================
+
+model Integration {
+  id        String   @id @default(cuid())
+  brandId   String
+  
+  // Integration info
+  type      String   // 'payment' | 'shipping' | 'advertising' | 'analytics'
+  provider  String   // 'stripe' | 'paypal' | 'google_ads' | etc
+  name      String
+  
+  // Credentials (encrypted)
+  apiKey       String?
+  apiSecret    String?
+  accessToken  String?
+  refreshToken String?
+  
+  // Status
+  isActive     Boolean   @default(true)
+  lastSyncedAt DateTime?
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  @@index([brandId])
+  @@index([type])
+}
+
+// ============================================
+// DAILY METRICS (Aggregated)
+// ============================================
+
+model DailyMetric {
+  id       String   @id @default(cuid())
+  storeId  String
+  date     DateTime @db.Date
+  
+  // Metrics
+  revenue      Decimal @db.Decimal(10, 2)
+  cost         Decimal @db.Decimal(10, 2)
+  shippingCost Decimal @default(0) @db.Decimal(10, 2)
+  adSpend      Decimal @default(0) @db.Decimal(10, 2)
+  profit       Decimal @db.Decimal(10, 2)
+  margin       Decimal @db.Decimal(5, 2)
+  orderCount   Int
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([storeId, date])
+  @@index([date])
+}
+
+// ============================================
+// SUBSCRIPTION & BILLING
+// ============================================
+
+model Subscription {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Plan
+  plan             String    // 'free' | 'starter' | 'pro' | 'enterprise'
+  status           String    // 'active' | 'canceled' | 'past_due'
+  
+  // Stripe
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
+  stripePriceId          String?
+  
+  // Billing
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  @@index([status])
+}
+
+// ============================================
+// GDPR & COMPLIANCE
+// ============================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  action    String   // 'data_export' | 'data_delete' | 'login' | 'api_access'
+  entity    String?  // 'order' | 'customer' | 'product'
+  entityId  String?
+  ipAddress String?
+  userAgent String?
+  
+  metadata  Json?    // Additional context
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model DataDeletionRequest {
+  id        String   @id @default(cuid())
+  email     String
+  status    String   // 'pending' | 'processing' | 'completed'
+  reason    String?
+  
+  requestedAt DateTime @default(now())
+  completedAt DateTime?
+  
+  @@index([email])
+  @@index([status])
+}

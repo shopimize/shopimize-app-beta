@@ -2,12 +2,13 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/Providers'
+import CookieConsent from '@/components/compliance/CookieConsent'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Profit Tracker - E-commerce Analytics',
-  description: 'Track your e-commerce profit and margins in real-time',
+  title: 'Shopimize - E-commerce Profit Analytics',
+  description: 'Track your real-time profit margins across Shopify, WooCommerce, Google Ads, and shipping costs',
 }
 
 export default function RootLayout({
@@ -20,6 +21,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           {children}
+          <CookieConsent />
         </Providers>
       </body>
     </html>
