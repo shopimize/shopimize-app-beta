@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { createSecureStore } from '@/lib/secure-store';
+import { createAuditLog } from '@/lib/compliance/gdpr';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 
@@ -58,21 +60,35 @@ export async function GET(request: NextRequest) {
 
     const { access_token } = await tokenResponse.json();
 
-    // Store the Shopify credentials
-    await prisma.store.create({
-      data: {
-        userId: session.user.id,
-        shopifyDomain: shop,
-        shopifyAccessToken: access_token,
-        shopifyShopId: shop.split('.')[0],
-        name: shop,
-        isActive: true,
-      }
+    // Store credentials using secure service (auto-encrypts)
+    await createSecureStore(session.user.id, {
+      shopifyDomain: shop,
+      shopifyAccessToken: access_token,
+      shopifyShopId: shop.split('.')[0],
+      name: shop,
+    });
+
+    // Log the integration for audit trail
+    await createAuditLog(prisma, {
+      userId: session.user.id,
+      action: 'shopify_connected',
+      entity: 'store',
+      metadata: { shop },
+      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+      userAgent: request.headers.get('user-agent') || undefined,
     });
 
     return NextResponse.redirect(new URL('/dashboard?connected=shopify', request.url));
   } catch (error) {
     console.error('Shopify callback error:', error);
+    
+    // Log the error
+    await createAuditLog(prisma, {
+      userId: session.user.id,
+      action: 'shopify_connection_failed',
+      metadata: { error: error instanceof Error ? error.message : 'Unknown error' },
+    });
+    
     return NextResponse.redirect(new URL('/dashboard?error=shopify_connection', request.url));
   }
 }

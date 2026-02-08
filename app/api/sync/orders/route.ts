@@ -15,15 +15,12 @@ export async function POST(request: NextRequest) {
   try {
     const { storeId } = await request.json();
 
-    const store = await prisma.store.findFirst({
-      where: {
-        id: storeId,
-        userId: session.user.id
-      }
-    });
+    // Get store with decrypted credentials using secure service
+    const { getSecureStore } = await import('@/lib/secure-store');
+    const store = await getSecureStore(storeId, session.user.id);
 
-    if (!store) {
-      return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+    if (!store || !store.credentials.shopifyAccessToken) {
+      return NextResponse.json({ error: 'Store not found or missing credentials' }, { status: 404 });
     }
 
     // Fetch orders from last 30 days or since last sync
@@ -32,7 +29,7 @@ export async function POST(request: NextRequest) {
     
     const orders = await getShopifyOrders(
       store.shopifyDomain,
-      store.shopifyAccessToken,
+      store.credentials.shopifyAccessToken,  // Use decrypted token
       since
     );
 
